@@ -198,7 +198,7 @@ if ($body -match "vwFactory/index\.js") {
 $providers = ""
 if ($body -match "(?m)^- id: llm-pi-ai\s*$") {
   Write-Warning "你的配置里已有自定义的 llm-pi-ai 段，脚本不会改动它。"
-  Write-Warning "请手动把 templates\llm-pi-ai.yml 里的 factory-claude / factory-gpt / factory 三个 provider 合并进去。"
+  Write-Warning "请手动把 templates\llm-pi-ai.yml 里的 factory-claude / factory-gpt / factory-grok / factory 四个 provider 合并进去。"
 } else {
   $tpl = [IO.File]::ReadAllText((Join-Path $here "templates\llm-pi-ai.yml"), $utf8).Replace("`r`n", "`n").TrimEnd()
   $providers = $nl + $nl + "# >>> vwfactory:providers (managed by install.ps1) >>>" + $nl + $tpl + $nl
@@ -232,6 +232,6 @@ if ($oldVer -eq $newVer) {
   Ok "安装完成 v$newVer。下一步:"
   Write-Host "  1. $(if ($restartExe) { 'DSH 已自动重启' } else { '完全退出并重新打开 DeepSeek Harness' })"
   Write-Host "  2. 打开 DSH 设置 -> Factory 账号，添加你自己的账号 (每行: 邮箱----fk-key)"
-  Write-Host "  3. 在输入框右侧的模型选择里选 Factory (Claude) / Factory (GPT) 下的模型"
+  Write-Host "  3. 在输入框右侧的模型选择里选 Factory (Claude) / Factory (GPT) / Factory (Grok) / Factory 下的模型"
 }
 if (-not $restartExe -and $oldVer) { Write-Host "  请完全退出并重新打开 DeepSeek Harness 使更新生效。" }

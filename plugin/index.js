@@ -1942,7 +1942,7 @@ var FactoryProxy = class {
     if (!state || typeof this.store.saveState !== "function") return 0;
     if (!isRecord(state.visionProbe)) state.visionProbe = {};
     Object.assign(VISION_PROBED, state.visionProbe);
-    const todo = entries.filter((e) => providerKey(e.family) === "factory" && needsVisionProbe(e.id)).slice(0, limit);
+    const todo = entries.filter((e) => providerKey(e.family, e.id) === "factory" && needsVisionProbe(e.id)).slice(0, limit);
     if (!todo.length || !this.store.activeIdentity?.()) return 0;
     const token = await this.store.proxyToken();
     let found = 0;
@@ -3521,6 +3521,19 @@ var GumloopRelay = class {
 
 // src/standalone/dshModels.ts
 import * as fs from "node:fs";
+// The Factory gateway answers 413 "Request Entity Too Large" to request bodies
+// above about 4.5 MB (measured: 4.25 MiB accepted, 4.5 MiB rejected). DSH's
+// llm-pi-ai route lets retained images alone reach 20 MiB of base64 by default,
+// and token-based compaction never sees image bytes, so an image-heavy session
+// hits the 413 and every later request (including /compact) fails the same way.
+// Capping the base64 image payload at 3 MiB leaves room for the text history;
+// past the cap DSH replaces the oldest images with their attachment id and
+// local path. 512 KiB per image keeps four or five recent images in that cap
+// instead of two.
+var FACTORY_IMAGE_LIMITS = [
+  "        maxRequestImageBytes: 3145728",
+  "        requestImageMaxBytes: 524288"
+];
 var PROVIDER_HEADS = {
   "factory-claude": [
     "      factory-claude:",
@@ -3529,6 +3542,7 @@ var PROVIDER_HEADS = {
     "        api: anthropic-messages",
     "        baseURL: http://127.0.0.1:4199",
     "        defaultInput: [text, image]",
+    ...FACTORY_IMAGE_LIMITS,
     "        models:"
   ],
   "factory-gpt": [
@@ -3538,14 +3552,28 @@ var PROVIDER_HEADS = {
     "        api: openai-responses",
     "        baseURL: http://127.0.0.1:4199/v1",
     "        defaultInput: [text, image]",
+    ...FACTORY_IMAGE_LIMITS,
     "        models:"
   ],
+  // Grok shares the Responses route with GPT but gets its own menu group.
+  "factory-grok": [
+    "      factory-grok:",
+    "        displayName: Factory (Grok)",
+    "        apiKeyEnv: VWFACTORY_TOKEN",
+    "        api: openai-responses",
+    "        baseURL: http://127.0.0.1:4199/v1",
+    "        defaultInput: [text, image]",
+    ...FACTORY_IMAGE_LIMITS,
+    "        models:"
+  ],
+  // Text-only by default; vision models opt in per model (input: [text, image]).
   factory: [
     "      factory:",
     "        displayName: Factory",
     "        apiKeyEnv: VWFACTORY_TOKEN",
     "        api: openai-completions",
     "        baseURL: http://127.0.0.1:4199/v1",
+    ...FACTORY_IMAGE_LIMITS,
     "        models:"
   ]
 };
@@ -3641,8 +3669,9 @@ async function probeVisionModel(port, token, model) {
   if (!answer.trim()) return void 0;
   return /red|orange|scarlet|crimson|红|橙/i.test(answer);
 }
-function providerKey(family) {
+function providerKey(family, id = "") {
   if (family === "anthropic") return "factory-claude";
+  if (id.startsWith("grok-")) return "factory-grok";
   if (family === "openai-responses") return "factory-gpt";
   return "factory";
 }
@@ -3681,9 +3710,10 @@ function syncPatchModels(patchPath, entries, glEntries = []) {
   const groups = {
     "factory-claude": [],
     "factory-gpt": [],
+    "factory-grok": [],
     factory: []
   };
-  for (const e of entries) groups[providerKey(e.family)].push(e);
+  for (const e of entries) groups[providerKey(e.family, e.id)].push(e);
   const block = ["    providers:"];
   for (const key of Object.keys(PROVIDER_HEADS)) {
     block.push(...PROVIDER_HEADS[key]);

@@ -24,7 +24,7 @@
        也可以像旧版一样，在 DSH 运行时用浏览器打开 http://127.0.0.1:4199/ 导入
 
   三、开始用
-    在输入框右侧的模型选择里，选 Factory (Claude) / Factory (GPT) / Factory 下的模型
+    在输入框右侧的模型选择里，选 Factory (Claude) / Factory (GPT) / Factory (Grok) / Factory 下的模型
 
   更新: DSH 设置 -> Factory 账号 -> 插件版本 -> 点「更新」，然后重启 DSH
         (也可以下载新压缩包、解压、再双击 install.bat，账号保留)

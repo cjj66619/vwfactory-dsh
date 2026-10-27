@@ -7,6 +7,8 @@
         api: anthropic-messages
         baseURL: http://127.0.0.1:4199
         defaultInput: [text, image]
+        maxRequestImageBytes: 3145728
+        requestImageMaxBytes: 524288
         models:
           - id: claude-opus-5-5
             name: "Claude Opus 5.5 · 1.6×"
@@ -62,6 +64,8 @@
         api: openai-responses
         baseURL: http://127.0.0.1:4199/v1
         defaultInput: [text, image]
+        maxRequestImageBytes: 3145728
+        requestImageMaxBytes: 524288
         models:
           - id: gpt-6.1-sol
             name: "GPT-6.1 Sol · 0.8×"
@@ -117,11 +121,31 @@
           - id: gpt-5.4-mini-fast
             name: "GPT-5.4 Mini Fast · 0.6×"
             reasoningEfforts: { low: low, medium: medium, high: high, xhigh: xhigh }
+      factory-grok:
+        displayName: Factory (Grok)
+        apiKeyEnv: VWFACTORY_TOKEN
+        api: openai-responses
+        baseURL: http://127.0.0.1:4199/v1
+        defaultInput: [text, image]
+        maxRequestImageBytes: 3145728
+        requestImageMaxBytes: 524288
+        models:
+          - id: grok-4.7
+            name: "Grok 4.7 · 0.8×"
+            reasoningEfforts: { low: low, medium: medium, high: high, xhigh: xhigh }
+          - id: grok-4.6
+            name: "Grok 4.6 · 0.8×"
+            reasoningEfforts: { low: low, medium: medium, high: high, xhigh: xhigh }
+          - id: grok-4.5
+            name: "Grok 4.5 · 0.8×"
+            reasoningEfforts: { low: low, medium: medium, high: high, xhigh: xhigh }
       factory:
         displayName: Factory
         apiKeyEnv: VWFACTORY_TOKEN
         api: openai-completions
         baseURL: http://127.0.0.1:4199/v1
+        maxRequestImageBytes: 3145728
+        requestImageMaxBytes: 524288
         models:
           - id: glm-5.3
             name: "GLM-5.3 · 0.56×"
@@ -160,3 +184,27 @@
           - id: nemotron-3-ultra
             name: "Nemotron 3 Ultra · 0.24×"
             reasoningEfforts: { off: null, high: high }
+          - id: gemini-3.1-pro-preview
+            name: "Gemini 3.1 Pro · 0.8×"
+            input: [text, image]
+            reasoningEfforts: { off: null, low: low, medium: medium, high: high }
+          - id: gemini-3.8-flash
+            name: "Gemini 3.8 Flash · 0.3×"
+            input: [text, image]
+            reasoningEfforts: { off: null, low: low, medium: medium, high: high }
+          - id: gemini-3.7-flash
+            name: "Gemini 3.7 Flash · 0.3×"
+            input: [text, image]
+            reasoningEfforts: { off: null, low: low, medium: medium, high: high }
+          - id: gemini-3.6-flash
+            name: "Gemini 3.6 Flash · 0.6×"
+            input: [text, image]
+            reasoningEfforts: { off: null, low: low, medium: medium, high: high }
+          - id: gemini-3.5-flash
+            name: "Gemini 3.5 Flash · 0.6×"
+            input: [text, image]
+            reasoningEfforts: { off: null, low: low, medium: medium, high: high }
+          - id: gemini-3-flash-preview
+            name: "Gemini 3 Flash · 0.2×"
+            input: [text, image]
+            reasoningEfforts: { off: null, low: low, medium: medium, high: high }

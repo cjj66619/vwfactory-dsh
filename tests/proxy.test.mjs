@@ -10,14 +10,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const target = path.resolve(process.argv[2] ?? path.join(here, "..", "plugin", "index.js"));
 const src = fs.readFileSync(target, "utf8").replace(
   /export \{\s*apply,/,
-  "export { FactoryProxy, FileStore, apply,"
+  "export { FactoryProxy, FileStore, syncPatchModels, apply,"
 );
 const modPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "vwf-test-")), "under-test.mjs");
 fs.writeFileSync(modPath, src);
 
 process.env.VWFACTORY_FIRST_BYTE_TIMEOUT_MS = "800";
 process.env.VWFACTORY_IDLE_TIMEOUT_MS = "1000";
-const { FactoryProxy, FileStore } = await import(pathToFileURL(modPath).href + "?" + Date.now());
+const { FactoryProxy, FileStore, syncPatchModels } = await import(pathToFileURL(modPath).href + "?" + Date.now());
 
 const results = [];
 const ok = (name, cond, info = "") => { results.push({ name, pass: !!cond, info }); console.log(`${cond ? "PASS" : "FAIL"}  ${name}${info ? "  — " + info : ""}`); };
@@ -211,6 +211,39 @@ reset("ok");
 }
 await proxy.stop();
 upstream.close();
+
+// 16. DSH model menu: Grok gets its own provider group, not "Factory (GPT)"
+{
+  const patch = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "vwf-patch-")), "cordis.patch.yml");
+  fs.writeFileSync(patch, "- id: llm-pi-ai\n  config:\n    providers:\n      old: {}\n- id: other\n  config: {}\n");
+  syncPatchModels(patch, [
+    { id: "gpt-5.5", name: "GPT-5.5", family: "openai-responses", efforts: ["low"] },
+    { id: "grok-4.7", name: "Grok 4.7", family: "openai-responses", efforts: ["low", "xhigh"] },
+    { id: "gemini-3.8-flash", name: "Gemini 3.8 Flash", family: "openai-completions", efforts: ["off", "high"] },
+  ]);
+  const yml = fs.readFileSync(patch, "utf8");
+  // Text of one provider block: from "      <key>:" up to the next provider or top-level item.
+  const section = (key) => { const m = new RegExp(`\\n      ${key}:\\n([\\s\\S]*?)(?=\\n      [a-z-]+:\\n|\\n- id: |$)`).exec(yml); return m ? m[1] : ""; };
+  const gpt = section("factory-gpt"), grok = section("factory-grok"), open = section("factory");
+  ok("16 grok listed under Factory (Grok)", grok.includes("displayName: Factory (Grok)") && grok.includes("- id: grok-4.7") && grok.includes("api: openai-responses"), grok.split("\n").length + " lines");
+  ok("16 grok not under Factory (GPT); gpt stays there", !gpt.includes("grok-") && gpt.includes("- id: gpt-5.5"));
+  ok("16 gemini under Factory with image input, rest of file kept", open.includes("- id: gemini-3.8-flash") && open.includes("input: [text, image]") && yml.includes("\n- id: other\n"));
+
+  // 17. Image budget stays under the Factory gateway's ~4.5 MB body limit (413 otherwise),
+  // both in what the plugin writes on refresh and in the first-install template.
+  const limits = (text) => {
+    const total = /\n {8}maxRequestImageBytes: (\d+)\r?\n/.exec(text), each = /\n {8}requestImageMaxBytes: (\d+)\r?\n/.exec(text);
+    return total && each ? [Number(total[1]), Number(each[1])] : null;
+  };
+  const underGateway = (l) => !!l && l[0] <= 3 * 1024 * 1024 && l[1] < l[0];
+  const keys = ["factory-claude", "factory-gpt", "factory-grok", "factory"];
+  const synced = keys.map((k) => [k, limits("\n" + section(k))]);
+  ok("17 synced Factory providers cap request images", synced.every(([, l]) => underGateway(l)), JSON.stringify(synced));
+  const tpl = fs.readFileSync(path.join(here, "..", "templates", "llm-pi-ai.yml"), "utf8").replace(/\r\n/g, "\n");
+  const tplSection = (key) => { const m = new RegExp(`\\n      ${key}:\\n([\\s\\S]*?)(?=\\n      [a-z-]+:\\n|$)`).exec(tpl); return m ? m[1] : ""; };
+  const tplLimits = keys.map((k) => [k, limits("\n" + tplSection(k))]);
+  ok("17 install template caps request images", tplLimits.every(([, l]) => underGateway(l)), JSON.stringify(tplLimits));
+}
 
 // ---------- DPAPI async (Windows only) ----------
 if (process.platform === "win32") {
